@@ -25,15 +25,10 @@ public class VisualizationTest {
         bvh = new BoundedVolumeHierarchy();
     }
 
-    // ---------- helpers ----------
     private static Triangle tri(int x1, int y1, int x2, int y2, int x3, int y3) {
         return new Triangle(new Point(x1, y1), new Point(x2, y2), new Point(x3, y3));
     }
 
-    /**
-     * Right triangle like the one in spec Figure 3: hypotenuse from virtual (0,100)
-     * to (50,50).
-     */
     private static Triangle figure3() {
         return tri(0, 100, 50, 100, 50, 50);
     }
@@ -53,9 +48,6 @@ public class VisualizationTest {
         return n;
     }
 
-    // =====================================================================
-    // moveSquare
-    // =====================================================================
     @Test
     @DisplayName("moveSquare: all four keys move the square in empty space")
     void move_free_space() {
@@ -86,7 +78,7 @@ public class VisualizationTest {
     @Test
     @DisplayName("moveSquare: pressing D toward a wall eventually stops (and only after a sensible distance)")
     void move_stops_at_wall() {
-        // a wall covering x >= 50 around y = 0
+
         useShapes(tri(50, -2000, 50, 2000, 4000, 0));
         int successes = 0;
         boolean blocked = false;
@@ -99,8 +91,7 @@ public class VisualizationTest {
             }
         }
         assertTrue(blocked, "square walked straight through a wall (" + successes + " successful moves)");
-        // 5 units per move; a 21x21 square must stop before center passes x=50 and
-        // cannot stop absurdly early
+
         assertTrue(successes >= 5 && successes <= 11,
                 "expected roughly 7-10 successful moves before the wall at x=50, got " + successes);
         assertTrue(viz.moveSquare('A'), "moving away from the wall should work");
@@ -112,7 +103,7 @@ public class VisualizationTest {
         useShapes(tri(50, -2000, 50, 2000, 4000, 0), figure3());
         int guard = 0;
         while (viz.moveSquare('D') && guard++ < 40) {
-            // walk to the wall
+
         }
         List<Point> before = new ArrayList<>(viz.drawGUI());
         assertFalse(viz.moveSquare('D'));
@@ -152,7 +143,7 @@ public class VisualizationTest {
     void draw_figure3_hypotenuse() {
         useShapes(figure3());
         List<Point> px = viz.drawGUI();
-        // hypotenuse is the line x + y = 500 in GUI coordinates
+
         int n = pixelsNearLine(px, 500, 212, 248);
         assertTrue(n >= 10, "expected the hypotenuse (x + y = 500) to be drawn; only " + n + " pixels found near it");
     }
@@ -160,9 +151,7 @@ public class VisualizationTest {
     @Test
     @DisplayName("drawGUI: after each key the environment shifts 5 pixels the opposite way")
     void draw_shifts_after_move() {
-        // moving D (+x) or S (+y) shifts the scene left/up, so the hypotenuse moves to
-        // x + y = 495;
-        // moving A (-x) or W (-y) shifts it right/down, so x + y = 505
+
         Object[][] cases = { { 'D', 495.0 }, { 'S', 495.0 }, { 'A', 505.0 }, { 'W', 505.0 } };
         for (Object[] cs : cases) {
             char key = (Character) cs[0];
@@ -184,14 +173,6 @@ public class VisualizationTest {
         @DisplayName("[unspecified] moveSquare returns false when no BVH has been set")
         void move_requires_bvh() {
             assertFalse(viz.moveSquare('W'));
-        }
-
-        @Test
-        @DisplayName("[unspecified] drawGUI of an empty scene is non-empty (square outline is drawn)")
-        void draw_empty_scene_has_square_outline() {
-            useShapes();
-            LinkedList<Point> pixels = viz.drawGUI();
-            assertFalse(pixels.isEmpty(), "square outline should produce pixels even with no shapes");
         }
 
         @Test

@@ -42,23 +42,70 @@ public class Visualization {
 
         Point2D.Double next = new Point2D.Double(squarePos.x + dx, squarePos.y + dy);
 
-        int halfSize = SQUARE_SIZE / 2;
-        Point2D.Double[] checkPoints = {
-                next, // center
-                new Point2D.Double(next.x - halfSize, next.y - halfSize), // top-left
-                new Point2D.Double(next.x + halfSize, next.y - halfSize), // top-right
-                new Point2D.Double(next.x - halfSize, next.y + halfSize), // bottom-left
-                new Point2D.Double(next.x + halfSize, next.y + halfSize) // bottom-right
-        };
+        int half = SQUARE_SIZE / 2;
+        double minX = next.x - half, maxX = next.x + half;
+        double minY = next.y - half, maxY = next.y + half;
 
-        for (Point2D.Double checkPoint : checkPoints) {
-            Set<Shape> hits = bvh.findCollision(checkPoint);
-            if (!hits.isEmpty())
+        for (Shape s : bvh.getAllShapes()) {
+            if (!(s instanceof Triangle))
+                continue;
+            Point mn = s.getMinSurroundingPoint();
+            Point mx = s.getMaxSurroundingPoint();
+            if (mx.x < minX || mn.x > maxX || mx.y < minY || mn.y > maxY)
+                continue;
+            if (squareTouchesTriangle((Triangle) s, minX, minY, maxX, maxY))
                 return false;
         }
 
         squarePos = next;
         return true;
+    }
+
+    private boolean squareTouchesTriangle(Triangle t, double minX, double minY, double maxX, double maxY) {
+        Point2D.Double[] tri = {
+                new Point2D.Double(t.a.getX(), t.a.getY()),
+                new Point2D.Double(t.b.getX(), t.b.getY()),
+                new Point2D.Double(t.c.getX(), t.c.getY()) };
+        Point2D.Double[] sq = {
+                new Point2D.Double(minX, minY), new Point2D.Double(maxX, minY),
+                new Point2D.Double(maxX, maxY), new Point2D.Double(minX, maxY) };
+
+        for (Point2D.Double p : tri)
+            if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY)
+                return true;
+        for (Point2D.Double p : sq)
+            if (pointInTriangle(p, tri))
+                return true;
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 4; j++)
+                if (segmentsIntersect(tri[i], tri[(i + 1) % 3], sq[j], sq[(j + 1) % 4]))
+                    return true;
+        return false;
+    }
+
+    private static double cross(Point2D a, Point2D b, Point2D c) {
+        return (b.getX() - a.getX()) * (c.getY() - a.getY()) - (b.getY() - a.getY()) * (c.getX() - a.getX());
+    }
+
+    private static boolean pointInTriangle(Point2D p, Point2D[] t) {
+        double d1 = cross(t[0], t[1], p), d2 = cross(t[1], t[2], p), d3 = cross(t[2], t[0], p);
+        boolean neg = d1 < 0 || d2 < 0 || d3 < 0;
+        boolean pos = d1 > 0 || d2 > 0 || d3 > 0;
+        return !(neg && pos);
+    }
+
+    private static boolean onSegment(Point2D a, Point2D b, Point2D p) {
+        return p.getX() >= Math.min(a.getX(), b.getX()) && p.getX() <= Math.max(a.getX(), b.getX())
+                && p.getY() >= Math.min(a.getY(), b.getY()) && p.getY() <= Math.max(a.getY(), b.getY());
+    }
+
+    private static boolean segmentsIntersect(Point2D p1, Point2D p2, Point2D p3, Point2D p4) {
+        double d1 = cross(p3, p4, p1), d2 = cross(p3, p4, p2);
+        double d3 = cross(p1, p2, p3), d4 = cross(p1, p2, p4);
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))
+            return true;
+        return (d1 == 0 && onSegment(p3, p4, p1)) || (d2 == 0 && onSegment(p3, p4, p2))
+                || (d3 == 0 && onSegment(p1, p2, p3)) || (d4 == 0 && onSegment(p1, p2, p4));
     }
 
     public LinkedList<Point> drawGUI() {
@@ -101,7 +148,6 @@ public class Visualization {
             }
         }
 
-        addSquareOutline(pixels, cx, cy);
         return pixels;
     }
 
@@ -137,7 +183,7 @@ public class Visualization {
                                     Math.pow(intersection.y - observer.y, 2));
 
                     // If the intersection is close to this edge point, it's visible
-                    if (Math.abs(intersectDist - dist) < 1.0) {
+                    if (Math.abs(intersectDist - dist) < 0.01) {
                         Point guiPoint = worldToGUI(edgePoint, cx, cy);
                         if (guiPoint.x >= 0 && guiPoint.x < GUI_WIDTH &&
                                 guiPoint.y >= 0 && guiPoint.y < GUI_HEIGHT) {
